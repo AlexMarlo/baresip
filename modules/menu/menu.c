@@ -552,32 +552,35 @@ static int switch_audio_dev(struct re_printf *pf, void *arg)
 	const struct cmd_arg *carg = arg;
 	static bool switch_aud_inprogress;
 	char *driver = NULL;
-	char *device = NULL;
+	char *device_in = NULL;
+	char *device_out = NULL;
 	int err = 0;
-	struct pl pl_driver, pl_device;
+	struct pl pl_driver, pl_device_in, pl_device_out;
 	struct audio * a;
 	struct le *le;
 	struct config *cfg;
 
 	if (!switch_aud_inprogress && !carg->complete)
-		re_hprintf(pf, "\rPlease enter driver an device\n");
+		re_hprintf(pf, "\rPlease enter driver,device_in,device_out\n");
 
 	switch_aud_inprogress = true;
 
 	if (carg->complete) {
 		switch_aud_inprogress = false;
-
-		re_regex( carg->prm, str_len(carg->prm), "[^,]+,[~]*",
-				&pl_driver, &pl_device);
+		re_regex( carg->prm, str_len(carg->prm), "[^,]+,[^,]+,[^,]+", &pl_driver, &pl_device_in, &pl_device_out);
 		driver = malloc( (pl_driver.l+1) * sizeof(char));
-		device = malloc( (pl_device.l+1) * sizeof(char));
+		device_in = malloc( (pl_device_in.l+1) * sizeof(char));
+		device_out = malloc( (pl_device_out.l+1) * sizeof(char));
 		(void)pl_strcpy( &pl_driver, driver, pl_driver.l+1);
-		if (pl_isset(&pl_device))
-			(void)pl_strcpy( &pl_device, device, pl_device.l+1);
+		if (pl_isset(&pl_device_in)){
+			(void)pl_strcpy( &pl_device_in, device_in, pl_device_in.l+1);
+			(void)pl_strcpy( &pl_device_out, device_out, pl_device_out.l+1);
+		}
 		else{
-			re_hprintf(pf, "\rFormat should be: driver,device\n");
+			re_hprintf(pf, "\rFormat should be: driver,device_in,device_out\n");
 			free( driver);
-			free( device);
+			free( device_in);
+			free( device_out);
 			return 0;
 		}
 
@@ -586,9 +589,9 @@ static int switch_audio_dev(struct re_printf *pf, void *arg)
 			struct call *call = le->data;
 
 			a = call_audio(call);
-			err = audio_set_player( a, driver, device);
+			err = audio_set_player( a, driver, device_in);
 			if (!err)
-				err = audio_set_source( a, driver, device);
+				err = audio_set_source( a, driver, device_out);
 			else
 				 break;
 
@@ -598,19 +601,20 @@ static int switch_audio_dev(struct re_printf *pf, void *arg)
 		cfg = conf_config();
 
 		(void)pl_strcpy( &pl_driver, cfg->audio.play_mod, pl_driver.l+1);
-		if (pl_isset(&pl_device))
-			(void)pl_strcpy( &pl_device, cfg->audio.play_dev, pl_device.l+1);
+		if (pl_isset(&pl_device_in))
+			(void)pl_strcpy( &pl_device_in, cfg->audio.play_dev, pl_device_in.l+1);
 
 		(void)pl_strcpy( &pl_driver, cfg->audio.src_mod, pl_driver.l+1);
-		if (pl_isset(&pl_device))
-			(void)pl_strcpy( &pl_device, cfg->audio.src_dev, pl_device.l+1);
+		if (pl_isset(&pl_device_out))
+			(void)pl_strcpy( &pl_device_out, cfg->audio.src_dev, pl_device_out.l+1);
 
 		(void)pl_strcpy( &pl_driver, cfg->audio.alert_mod, pl_driver.l+1);
-		if (pl_isset(&pl_device))
-			(void)pl_strcpy( &pl_device, cfg->audio.alert_dev, pl_device.l+1);
+		if (pl_isset(&pl_device_in))
+			(void)pl_strcpy( &pl_device_in, cfg->audio.alert_dev, pl_device_in.l+1);
 
 		free( driver);
-		free( device);
+		free( device_in);
+		free( device_out);
 		if (err) return err;
 	}
 	return 0;
